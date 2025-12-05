@@ -127,9 +127,3 @@ g++ SourceCode_CPP -I . -o expense_app
 * C++11 atau lebih baru
 
 ---
-
-## **👥 Author**
-
-**Chenaniah Chen**
-
-Jika butuh bantuan tambahan (seperti penulisan dokumentasi laporan, flowchart, atau perbaikan kode), tinggal bilang saja!
