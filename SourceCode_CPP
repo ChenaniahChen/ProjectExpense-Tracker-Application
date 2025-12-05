@@ -1,0 +1,793 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <iomanip>
+#include <algorithm>
+#include <map>
+#include <set>
+#include <sstream>
+#include <ctime>
+#include <limits>
+
+using namespace std;
+
+// Expense structure
+struct Expense {
+    int id;
+    string date;
+    string category;
+    string description;
+    double amount;
+    string created_at;
+};
+
+// ExpenseTracker class
+class ExpenseTracker {
+private:
+    vector<Expense> expenses;
+    int next_id;
+    set<string> categories;
+
+    string getCurrentDateTime() {
+        time_t now = time(0);
+        tm* ltm = localtime(&now);
+        char buffer[80];
+        strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", ltm);
+        return string(buffer);
+    }
+
+    string getCurrentDate() {
+        time_t now = time(0);
+        tm* ltm = localtime(&now);
+        char buffer[80];
+        strftime(buffer, 80, "%Y-%m-%d", ltm);
+        return string(buffer);
+    }
+
+    bool isValidDate(const string& date) {
+        if (date.length() != 10) return false;
+        if (date[4] != '-' || date[7] != '-') return false;
+        return true;
+    }
+
+    string toTitleCase(string str) {
+        if (!str.empty()) {
+            str[0] = toupper(str[0]);
+            for (size_t i = 1; i < str.length(); i++) {
+                str[i] = tolower(str[i]);
+            }
+        }
+        return str;
+    }
+
+    string formatCurrency(double amount) {
+        stringstream ss;
+        ss << fixed << setprecision(0);
+        long long amt = static_cast<long long>(amount);
+        string result = to_string(amt);
+        
+        int insertPosition = result.length() - 3;
+        while (insertPosition > 0) {
+            result.insert(insertPosition, ",");
+            insertPosition -= 3;
+        }
+        return "Rp " + result;
+    }
+
+    Expense* findExpenseById(int id) {
+        for (auto& exp : expenses) {
+            if (exp.id == id) return &exp;
+        }
+        return nullptr;
+    }
+
+public:
+    ExpenseTracker() : next_id(1) {}
+
+    bool addExpense(string date, string category, string description, double amount) {
+        if (date == "today") {
+            date = getCurrentDate();
+        }
+        
+        if (!isValidDate(date)) {
+            cout << "✗ Invalid date format! Please use YYYY-MM-DD" << endl;
+            return false;
+        }
+
+        Expense exp;
+        exp.id = next_id++;
+        exp.date = date;
+        exp.category = toTitleCase(category);
+        exp.description = description;
+        exp.amount = amount;
+        exp.created_at = getCurrentDateTime();
+
+        expenses.push_back(exp);
+        categories.insert(exp.category);
+        
+        cout << "Expense added successfully! (ID: " << exp.id << ")" << endl;
+        return true;
+    }
+
+    void editExpense(int expense_id) {
+        Expense* exp = findExpenseById(expense_id);
+        if (!exp) {
+            cout << "✗ Expense with ID " << expense_id << " not found!" << endl;
+            return;
+        }
+
+        cout << "\n" << string(60, '=') << endl;
+        cout << "Editing Expense ID: " << expense_id << endl;
+        cout << string(60, '=') << endl;
+        cout << "Date:        " << exp->date << endl;
+        cout << "Category:    " << exp->category << endl;
+        cout << "Description: " << exp->description << endl;
+        cout << "Amount:      " << formatCurrency(exp->amount) << endl;
+        cout << string(60, '=') << endl;
+        cout << "Press Enter to keep current value\n" << endl;
+
+        string input;
+        cout << "New date (YYYY-MM-DD): ";
+        getline(cin, input);
+        if (!input.empty() && isValidDate(input)) {
+            exp->date = input;
+        }
+
+        cout << "New category: ";
+        getline(cin, input);
+        if (!input.empty()) {
+            exp->category = toTitleCase(input);
+            categories.insert(exp->category);
+        }
+
+        cout << "New description: ";
+        getline(cin, input);
+        if (!input.empty()) {
+            exp->description = input;
+        }
+
+        cout << "New amount: ";
+        getline(cin, input);
+        if (!input.empty()) {
+            try {
+                exp->amount = stod(input);
+            } catch (...) {
+                cout << "✗ Invalid amount! Amount not updated." << endl;
+            }
+        }
+
+        cout << "✓ Expense updated successfully!" << endl;
+    }
+
+    bool deleteExpense(int expense_id) {
+        auto it = find_if(expenses.begin(), expenses.end(), 
+            [expense_id](const Expense& e) { return e.id == expense_id; });
+        
+        if (it != expenses.end()) {
+            expenses.erase(it);
+            cout << "✓ Expense ID " << expense_id << " deleted successfully!" << endl;
+            return true;
+        }
+        
+        cout << "✗ Expense with ID " << expense_id << " not found!" << endl;
+        return false;
+    }
+
+    void bulkDelete() {
+        if (expenses.empty()) {
+            cout << "No expenses to delete." << endl;
+            return;
+        }
+
+        cout << "\n--- Bulk Delete ---" << endl;
+        cout << "1. Delete by date range" << endl;
+        cout << "2. Delete by category" << endl;
+        cout << "3. Delete by amount range" << endl;
+
+        int choice;
+        cout << "Select option (1-3): ";
+        cin >> choice;
+        cin.ignore();
+
+        vector<Expense> to_delete;
+
+        if (choice == 1) {
+            string start_date, end_date;
+            cout << "Start date (YYYY-MM-DD): ";
+            getline(cin, start_date);
+            cout << "End date (YYYY-MM-DD): ";
+            getline(cin, end_date);
+            
+            for (const auto& e : expenses) {
+                if (e.date >= start_date && e.date <= end_date) {
+                    to_delete.push_back(e);
+                }
+            }
+        } else if (choice == 2) {
+            string category;
+            cout << "Enter category: ";
+            getline(cin, category);
+            category = toTitleCase(category);
+            
+            for (const auto& e : expenses) {
+                if (e.category == category) {
+                    to_delete.push_back(e);
+                }
+            }
+        } else if (choice == 3) {
+            double min_amt, max_amt;
+            cout << "Minimum amount: ";
+            cin >> min_amt;
+            cout << "Maximum amount: ";
+            cin >> max_amt;
+            cin.ignore();
+            
+            for (const auto& e : expenses) {
+                if (e.amount >= min_amt && e.amount <= max_amt) {
+                    to_delete.push_back(e);
+                }
+            }
+        }
+
+        if (!to_delete.empty()) {
+            cout << "\nFound " << to_delete.size() << " expenses to delete." << endl;
+            string confirm;
+            cout << "Confirm deletion? (yes/no): ";
+            getline(cin, confirm);
+            
+            if (confirm == "yes") {
+                for (const auto& del : to_delete) {
+                    auto it = find_if(expenses.begin(), expenses.end(),
+                        [&del](const Expense& e) { return e.id == del.id; });
+                    if (it != expenses.end()) {
+                        expenses.erase(it);
+                    }
+                }
+                cout << "✓ Deleted " << to_delete.size() << " expenses!" << endl;
+            }
+        } else {
+            cout << "No matching expenses found." << endl;
+        }
+    }
+
+    void searchExpenses() {
+        cout << "\n--- Search Expenses ---" << endl;
+        cout << "1. Search by keyword" << endl;
+        cout << "2. Search by category" << endl;
+        cout << "3. Search by date range" << endl;
+        cout << "4. Search by amount range" << endl;
+
+        int choice;
+        cout << "Select search type (1-4): ";
+        cin >> choice;
+        cin.ignore();
+
+        vector<Expense> results;
+
+        if (choice == 1) {
+            string keyword;
+            cout << "Enter keyword: ";
+            getline(cin, keyword);
+            transform(keyword.begin(), keyword.end(), keyword.begin(), ::tolower);
+            
+            for (const auto& e : expenses) {
+                string desc_lower = e.description;
+                string cat_lower = e.category;
+                transform(desc_lower.begin(), desc_lower.end(), desc_lower.begin(), ::tolower);
+                transform(cat_lower.begin(), cat_lower.end(), cat_lower.begin(), ::tolower);
+                
+                if (desc_lower.find(keyword) != string::npos || 
+                    cat_lower.find(keyword) != string::npos) {
+                    results.push_back(e);
+                }
+            }
+        } else if (choice == 2) {
+            string category;
+            cout << "Enter category: ";
+            getline(cin, category);
+            category = toTitleCase(category);
+            
+            for (const auto& e : expenses) {
+                if (e.category == category) results.push_back(e);
+            }
+        } else if (choice == 3) {
+            string start_date, end_date;
+            cout << "Start date (YYYY-MM-DD): ";
+            getline(cin, start_date);
+            cout << "End date (YYYY-MM-DD): ";
+            getline(cin, end_date);
+            
+            for (const auto& e : expenses) {
+                if (e.date >= start_date && e.date <= end_date) {
+                    results.push_back(e);
+                }
+            }
+        } else if (choice == 4) {
+            double min_amt, max_amt;
+            cout << "Minimum amount: ";
+            cin >> min_amt;
+            cout << "Maximum amount: ";
+            cin >> max_amt;
+            
+            for (const auto& e : expenses) {
+                if (e.amount >= min_amt && e.amount <= max_amt) {
+                    results.push_back(e);
+                }
+            }
+        }
+
+        if (!results.empty()) {
+            displayExpenseList(results);
+        } else {
+            cout << "No matching expenses found." << endl;
+        }
+    }
+
+    void displayExpenseList(const vector<Expense>& expense_list) {
+        cout << "\n" << string(100, '=') << endl;
+        cout << left << setw(6) << "ID" 
+             << setw(13) << "Date" 
+             << setw(16) << "Category" 
+             << setw(36) << "Description" 
+             << right << setw(18) << "Amount" << endl;
+        cout << string(100, '=') << endl;
+
+        double total = 0;
+        for (const auto& exp : expense_list) {
+            string desc = exp.description;
+            if (desc.length() > 33) desc = desc.substr(0, 33) + "..";
+            
+            cout << left << setw(6) << exp.id
+                 << setw(13) << exp.date
+                 << setw(16) << exp.category
+                 << setw(36) << desc
+                 << right << setw(18) << formatCurrency(exp.amount) << endl;
+            total += exp.amount;
+        }
+
+        cout << string(100, '=') << endl;
+        cout << "Total: " << expense_list.size() << " expenses | Sum: " 
+             << formatCurrency(total) << endl;
+    }
+
+    int displayExpensesPaginated(int page, int per_page = 5) {
+        if (expenses.empty()) return 0;
+
+        vector<Expense> sorted_expenses = expenses;
+        sort(sorted_expenses.begin(), sorted_expenses.end(), 
+            [](const Expense& a, const Expense& b) { return a.date > b.date; });
+
+        int total_pages = (sorted_expenses.size() + per_page - 1) / per_page;
+        int start_idx = (page - 1) * per_page;
+        int end_idx = min(start_idx + per_page, (int)sorted_expenses.size());
+
+        cout << "\n" << string(100, '=') << endl;
+        cout << left << setw(6) << "ID" 
+             << setw(13) << "Date" 
+             << setw(16) << "Category" 
+             << setw(36) << "Description" 
+             << right << setw(18) << "Amount" << endl;
+        cout << string(100, '=') << endl;
+
+        double total = 0;
+        for (int i = start_idx; i < end_idx; i++) {
+            const auto& exp = sorted_expenses[i];
+            string desc = exp.description;
+            if (desc.length() > 33) desc = desc.substr(0, 33) + "..";
+            
+            cout << left << setw(6) << exp.id
+                 << setw(13) << exp.date
+                 << setw(16) << exp.category
+                 << setw(36) << desc
+                 << right << setw(18) << formatCurrency(exp.amount) << endl;
+            total += exp.amount;
+        }
+
+        cout << string(100, '=') << endl;
+        cout << "Page " << page << "/" << total_pages 
+             << " | Showing " << start_idx + 1 << "-" << end_idx 
+             << " of " << sorted_expenses.size() 
+             << " | Total: " << formatCurrency(total) << endl;
+        cout << string(100, '=') << endl;
+
+        return total_pages;
+    }
+
+    void showTransactionSummary() {
+        if (expenses.empty()) {
+            cout << "No expenses to summarize." << endl;
+            return;
+        }
+
+        map<string, double> category_totals;
+        map<string, double> monthly_totals;
+        double total_amount = 0;
+
+        for (const auto& exp : expenses) {
+            category_totals[exp.category] += exp.amount;
+            // Only extract month if date is valid format (YYYY-MM-DD)
+            if (exp.date.length() >= 7) {
+                string month = exp.date.substr(0, 7);
+                monthly_totals[month] += exp.amount;
+            }
+            total_amount += exp.amount;
+        }
+
+        cout << "\n" << string(60, '=') << endl;
+        cout << "EXPENSE SUMMARY REPORT" << endl;
+        cout << string(60, '=') << endl;
+
+        cout << "\n>> EXPENSES BY CATEGORY" << endl;
+        cout << string(60, '-') << endl;
+        for (const auto& pair : category_totals) {
+            double percentage = (pair.second / total_amount) * 100;
+            cout << left << setw(20) << pair.first 
+                 << right << setw(20) << formatCurrency(pair.second)
+                 << " (" << fixed << setprecision(1) << percentage << "%)" << endl;
+        }
+
+        cout << "\n>> MONTHLY EXPENSES" << endl;
+        cout << string(60, '-') << endl;
+        vector<pair<string, double>> monthly_vec(monthly_totals.begin(), monthly_totals.end());
+        sort(monthly_vec.begin(), monthly_vec.end(), 
+            [](const auto& a, const auto& b) { return a.first > b.first; });
+        
+        int count = 0;
+        for (const auto& pair : monthly_vec) {
+            if (count++ >= 6) break;
+            cout << pair.first << ": " << formatCurrency(pair.second) << endl;
+        }
+
+        cout << "\n>> TOP 5 HIGHEST EXPENSES" << endl;
+        cout << string(60, '-') << endl;
+        vector<Expense> top_expenses = expenses;
+        sort(top_expenses.begin(), top_expenses.end(),
+            [](const Expense& a, const Expense& b) { return a.amount > b.amount; });
+        
+        for (int i = 0; i < min(5, (int)top_expenses.size()); i++) {
+            const auto& exp = top_expenses[i];
+            string desc = exp.description;
+            if (desc.length() > 30) desc = desc.substr(0, 30);
+            cout << left << setw(18) << formatCurrency(exp.amount)
+                 << " | " << exp.date << " | " 
+                 << setw(15) << exp.category << " | " << desc << endl;
+        }
+
+        vector<double> amounts;
+        for (const auto& exp : expenses) amounts.push_back(exp.amount);
+
+        double sum = 0, max_amt = amounts[0], min_amt = amounts[0];
+        for (double amt : amounts) {
+            sum += amt;
+            if (amt > max_amt) max_amt = amt;
+            if (amt < min_amt) min_amt = amt;
+        }
+
+        cout << "\n>> STATISTICS" << endl;
+        cout << string(60, '-') << endl;
+        cout << "Total Expenses:  " << formatCurrency(total_amount) << endl;
+        cout << "Average:         " << formatCurrency(sum / amounts.size()) << endl;
+        cout << "Highest:         " << formatCurrency(max_amt) << endl;
+        cout << "Lowest:          " << formatCurrency(min_amt) << endl;
+        cout << "Count:           " << expenses.size() << " transactions" << endl;
+        cout << string(60, '=') << endl;
+    }
+
+    void viewCategories() {
+        if (categories.empty()) {
+            cout << "\nNo categories yet." << endl;
+            return;
+        }
+
+        cout << "\n>> Available Categories:" << endl;
+        int i = 1;
+        for (const auto& cat : categories) {
+            int count = 0;
+            double total = 0;
+            for (const auto& e : expenses) {
+                if (e.category == cat) {
+                    count++;
+                    total += e.amount;
+                }
+            }
+            cout << "  " << i++ << ". " << left << setw(20) << cat 
+                 << "(" << count << " expenses, " << formatCurrency(total) << ")" << endl;
+        }
+    }
+
+    void loadFromFile(const string& filename = "input.txt") {
+        ifstream file(filename);
+        if (!file.is_open()) {
+            cout << "i File " << filename << " not found. Starting with empty data." << endl;
+            return;
+        }
+
+        expenses.clear();
+        categories.clear();
+        string line;
+        
+        while (getline(file, line)) {
+            if (line.find("\"id\":") != string::npos) {
+                Expense exp;
+                
+                try {
+                    // Parse ID
+                    size_t pos = line.find("\"id\":") + 5;
+                    exp.id = stoi(line.substr(pos, line.find(",", pos) - pos));
+                    
+                    // Parse date
+                    if (!getline(file, line)) break;
+                    pos = line.find("\"date\": \"");
+                    if (pos == string::npos) continue;
+                    pos += 9;
+                    size_t end_pos = line.find("\"", pos);
+                    if (end_pos == string::npos) continue;
+                    exp.date = line.substr(pos, end_pos - pos);
+                    
+                    // Parse category
+                    if (!getline(file, line)) break;
+                    pos = line.find("\"category\": \"");
+                    if (pos == string::npos) continue;
+                    pos += 13;
+                    end_pos = line.find("\"", pos);
+                    if (end_pos == string::npos) continue;
+                    exp.category = line.substr(pos, end_pos - pos);
+                    
+                    // Parse description
+                    if (!getline(file, line)) break;
+                    pos = line.find("\"description\": \"");
+                    if (pos == string::npos) continue;
+                    pos += 16;
+                    end_pos = line.find("\"", pos);
+                    if (end_pos == string::npos) continue;
+                    exp.description = line.substr(pos, end_pos - pos);
+                    
+                    // Parse amount
+                    if (!getline(file, line)) break;
+                    pos = line.find("\"amount\":");
+                    if (pos == string::npos) continue;
+                    pos += 9;
+                    end_pos = line.find(",", pos);
+                    if (end_pos == string::npos) end_pos = line.length();
+                    exp.amount = stod(line.substr(pos, end_pos - pos));
+                    
+                    // Parse created_at
+                    if (!getline(file, line)) break;
+                    pos = line.find("\"created_at\": \"");
+                    if (pos != string::npos) {
+                        pos += 15;
+                        end_pos = line.find("\"", pos);
+                        if (end_pos != string::npos) {
+                            exp.created_at = line.substr(pos, end_pos - pos);
+                        }
+                    }
+                    
+                    // Only add if date is valid
+                    if (exp.date.length() >= 8) {
+                        expenses.push_back(exp);
+                        categories.insert(exp.category);
+                        
+                        if (exp.id >= next_id) next_id = exp.id + 1;
+                    }
+                } catch (const exception& e) {
+                    // Skip invalid entries
+                    continue;
+                }
+            }
+        }
+        
+        file.close();
+        cout << "v Data loaded successfully from " << filename << endl;
+        cout << "  Loaded " << expenses.size() << " expenses" << endl;
+    }
+
+    void saveToFile(const string& filename = "output.txt") {
+        ofstream file(filename);
+        if (!file.is_open()) {
+            cout << "✗ Error saving file: Unable to open " << filename << endl;
+            return;
+        }
+
+        file << "{\n";
+        file << "  \"expenses\": [\n";
+        
+        for (size_t i = 0; i < expenses.size(); i++) {
+            const auto& exp = expenses[i];
+            file << "    {\n";
+            file << "      \"id\": " << exp.id << ",\n";
+            file << "      \"date\": \"" << exp.date << "\",\n";
+            file << "      \"category\": \"" << exp.category << "\",\n";
+            file << "      \"description\": \"" << exp.description << "\",\n";
+            file << "      \"amount\": " << fixed << setprecision(1) << exp.amount << ",\n";
+            file << "      \"created_at\": \"" << exp.created_at << "\"\n";
+            file << "    }" << (i < expenses.size() - 1 ? "," : "") << "\n";
+        }
+        
+        file << "  ],\n";
+        file << "  \"next_id\": " << next_id << ",\n";
+        file << "  \"saved_at\": \"" << getCurrentDateTime() << "\"\n";
+        file << "}\n";
+        
+        file.close();
+        cout << "✓ Data saved successfully to " << filename << endl;
+    }
+
+    bool isEmpty() const {
+        return expenses.empty();
+    }
+
+    set<string> getCategories() const {
+        return categories;
+    }
+};
+
+void clearScreen() {
+    #ifdef _WIN32
+        system("cls");
+    #else
+        system("clear");
+    #endif
+}
+
+int main() {
+    ExpenseTracker tracker;
+    int current_page = 1;
+
+    tracker.loadFromFile("input.txt");
+
+    while (true) {
+        cout << "\n" << "+" << string(98, '=') << "+" << endl;
+        cout << "|" << string(35, ' ') << "EXPENSE TRACKER APPLICATION" << string(36, ' ') << "|" << endl;
+        cout << "+" << string(98, '=') << "+" << endl;
+
+        if (!tracker.isEmpty()) {
+            int total_pages = tracker.displayExpensesPaginated(current_page);
+        cout << "\n[UP/DOWN] Page Navigation: Type 'next' or 'prev' in menu" << endl;
+        } else {
+            cout << "\n" << string(35, ' ') << ">> No expenses yet. Add your first expense!" << endl;
+        }
+
+        cout << "\n" << string(100, '-') << endl;
+        cout << "+- ACTIONS " << string(88, '-') << "+" << endl;
+        cout << "| 1. + Add Expense        2. Edit Expense       3. Delete Expense      4. Search        |" << endl;
+        cout << "| 5. Summary Report       6. Save Data          7. Load Data           8. Bulk Delete   |" << endl;
+        cout << "| 9. View Categories      10. Refresh           11. Exit                                |" << endl;
+        cout << "+" << string(98, '-') << "+" << endl;
+
+        string choice;
+        cout << "\n Please Enter your choice: ";
+        getline(cin, choice);
+
+        if (choice == "next" || choice == "n") {
+            current_page++;
+            continue;
+        } else if (choice == "prev" || choice == "p" || choice == "previous") {
+            if (current_page > 1) current_page--;
+            continue;
+        } else if (choice == "10" || choice == "refresh") {
+            continue;
+        }
+
+        if (choice == "1") {
+            cout << "\n" << string(60, '-') << endl;
+            cout << "+ ADD NEW EXPENSE" << endl;
+            cout << string(60, '-') << endl;
+            
+            string date, category, description, amount_str;
+            
+            cout << ">> Date (YYYY-MM-DD or 'today'): ";
+            getline(cin, date);
+            
+            if (!tracker.getCategories().empty()) {
+                cout << "\n>> Available categories: ";
+                bool first = true;
+                for (const auto& cat : tracker.getCategories()) {
+                    if (!first) cout << ", ";
+                    cout << cat;
+                    first = false;
+                }
+                cout << endl;
+            }
+            
+            cout << ">> Category: ";
+            getline(cin, category);
+            cout << ">> Description: ";
+            getline(cin, description);
+            cout << ">> Amount: ";
+            getline(cin, amount_str);
+
+            if (!date.empty() && !category.empty() && !description.empty() && !amount_str.empty()) {
+                try {
+                    double amount = stod(amount_str);
+                    tracker.addExpense(date, category, description, amount);
+                    current_page = 1;
+                } catch (...) {
+                    cout << "✗ Invalid amount! Please enter a number." << endl;
+                }
+            } else {
+                cout << "✗ All fields are required!" << endl;
+            }
+            
+            cout << "\nPress Enter to continue...";
+            cin.get();
+
+        } else if (choice == "2") {
+            int id;
+            cout << "\nEnter expense ID to edit: ";
+            cin >> id;
+            cin.ignore();
+            tracker.editExpense(id);
+            cout << "\nPress Enter to continue...";
+            cin.get();
+
+        } else if (choice == "3") {
+            int id;
+            cout << "\n➤ Enter expense ID to delete: ";
+            cin >> id;
+            cin.ignore();
+            
+            string confirm;
+            cout << "!! Delete expense ID " << id << "? (yes/no): ";
+            getline(cin, confirm);
+            
+            if (confirm == "yes") {
+                tracker.deleteExpense(id);
+            }
+            
+            cout << "\nPress Enter to continue...";
+            cin.get();
+
+        } else if (choice == "4") {
+            tracker.searchExpenses();
+            cout << "\nPress Enter to continue...";
+            cin.get();
+
+        } else if (choice == "5") {
+            tracker.showTransactionSummary();
+            cout << "\nPress Enter to continue...";
+            cin.get();
+
+        } else if (choice == "6") {
+            tracker.saveToFile("output.txt");
+            cout << "\nPress Enter to continue...";
+            cin.get();
+
+        } else if (choice == "7") {
+            tracker.loadFromFile("input.txt");
+            current_page = 1;
+            cout << "\nPress Enter to continue...";
+            cin.get();
+
+        } else if (choice == "8") {
+            tracker.bulkDelete();
+            cout << "\nPress Enter to continue...";
+            cin.get();
+
+        } else if (choice == "9") {
+            tracker.viewCategories();
+            cout << "\nPress Enter to continue...";
+            cin.get();
+
+        } else if (choice == "11" || choice == "exit") {
+            cout << "\n" << string(60, '-') << endl;
+            string save;
+            cout << ">> Save data before exiting? (yes/no): ";
+            getline(cin, save);
+            
+            if (save == "yes") {
+                tracker.saveToFile("output.txt");
+            }
+            
+            cout << "\n*** Thank you for using Expense Tracker! Goodbye! ***\n" << endl;
+            break;
+
+        } else {
+            cout << "Invalid choice! Please select a valid option." << endl;
+            cout << "\nPress Enter to continue...";
+            cin.get();
+        }
+    }
+
+    return 0;
+}
