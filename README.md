@@ -1,4 +1,4 @@
-**Expense Tracker Application (C++)**
+## Expense Tracker Application (C++)
 
 A simple console-based **Expense Tracker** built using C++.
 Program ini memungkinkan pengguna untuk:
@@ -14,7 +14,7 @@ Repositori ini juga menyertakan file **input.txt** dan **output.txt** untuk mela
 
 ---
 
-## ** Project Structure**
+## Project Structure
 
 ```
 ProjectExpense-Tracker-Application/
@@ -27,7 +27,7 @@ ProjectExpense-Tracker-Application/
 
 ---
 
-## **📝 Input Data Example (input.txt)**
+## Input Data Example (input.txt)
 
 Berikut contoh format JSON yang digunakan program:
 
@@ -60,7 +60,7 @@ File ini dapat langsung digunakan oleh program untuk memuat data.
 
 ---
 
-## **▶️ Cara Menjalankan Program di VS Code (Windows / Mac / Linux)**
+## **Cara Menjalankan Program di VS Code (Windows / Mac / Linux)**
 
 ### **1. Pastikan Anda memiliki:**
 
@@ -112,7 +112,7 @@ g++ SourceCode_CPP -I . -o expense_app
 
 ---
 
-## **📌 Catatan Penggunaan**
+## **Catatan Penggunaan**
 
 * Program akan otomatis membaca data dari file JSON (input.txt).
 * Setelah program dijalankan dan fitur digunakan, output akan tersimpan di **output.txt**.
@@ -121,7 +121,7 @@ g++ SourceCode_CPP -I . -o expense_app
 
 ---
 
-## **📦 Dependencies**
+## **Dependencies**
 
 * **nlohmann/json.hpp** (sudah tersedia di repo)
 * C++11 atau lebih baru
